@@ -4,6 +4,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from "next/navigation";
+import { toPng } from 'html-to-image';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,10 @@ function PlannerContent() {
     const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({});
     const [isSendingToCanva, setIsSendingToCanva] = useState<string | null>(null);
     const [isExchangingToken, setIsExchangingToken] = useState(false);
+
+    // For generating design snapshots
+    const [designPreview, setDesignPreview] = useState<{ type: string; content: any; imageUrl?: string } | null>(null);
+    const designRef = useRef<HTMLDivElement>(null);
 
     // Handle Canva OAuth callback
     // Handle Canva OAuth callback
@@ -215,23 +220,42 @@ function PlannerContent() {
                 await navigator.clipboard.writeText(textToCopy);
             }
 
+            // GENERATE DESIGN SNAPSHOT
+            // Set preview data to trigger hidden render
+            setDesignPreview({ type: section.type, content: section.content, imageUrl });
+
+            // Wait for render (100ms)
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            let snapshotDataUrl = imageUrl; // Fallback to raw AI image if snapshot fails
+
+            if (designRef.current) {
+                try {
+                    // Generate PNG from the hidden design element
+                    snapshotDataUrl = await toPng(designRef.current, { cacheBust: true });
+                } catch (snapErr) {
+                    console.error("Snapshot failed:", snapErr);
+                }
+            }
+
             const result = await sendToCanva({
                 userId: "default-user",
                 contentType: section.type,
                 content: section.content,
-                imageUrl,
+                imageUrl: snapshotDataUrl, // Send the composed design snapshot!
             });
 
             if (result.success) {
                 // Open Canva editor in new tab
                 window.open(result.editUrl, "_blank");
-                alert(`✅ Design created!\n\n📋 Content copied to clipboard!\nSimply press Cmd+V (Ctrl+V) in Canva to paste your text.\n\nYour generated image (if any) is in the "Uploads" tab.`);
+                alert(`✅ Design created!\n\n📋 Content copied to clipboard (Cmd+V to paste as text)\n🖼️ Full Design Layout uploaded to "Uploads" tab - drag it onto the canvas!`);
             }
         } catch (error: any) {
             console.error("Failed to send to Canva:", error);
             alert(`Failed to send to Canva: ${error.message || "Unknown error"}`);
         } finally {
             setIsSendingToCanva(null);
+            setDesignPreview(null); // Clean up
         }
     };
 
@@ -751,6 +775,84 @@ function PlannerContent() {
                     </Card>
                 </div>
             </div>
+            {/* Hidden Design Generator */}
+            <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+                {designPreview && (
+                    <div
+                        ref={designRef}
+                        style={{
+                            width: designPreview.type === "instagram" ? "1080px" : "1200px",
+                            height: designPreview.type === "instagram" ? "1080px" : "630px",
+                            padding: "60px",
+                            background: designPreview.imageUrl
+                                ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${designPreview.imageUrl})`
+                                : "linear-gradient(135deg, #fdfbf7 0%, #e2e8f0 100%)",
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            fontFamily: "Inter, sans-serif",
+                            color: designPreview.imageUrl ? "white" : "#1a1a1a",
+                            textAlign: "center",
+                        }}
+                    >
+                        {/* Branding */}
+                        <div style={{
+                            position: "absolute",
+                            top: "40px",
+                            left: "40px",
+                            fontSize: "24px",
+                            fontWeight: "bold",
+                            letterSpacing: "0.05em",
+                            opacity: 0.8
+                        }}>
+                            THE MINDFUL NL
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ maxWidth: "80%" }}>
+                            {/* Title */}
+                            <h1 style={{
+                                fontSize: "72px",
+                                fontWeight: "800",
+                                lineHeight: "1.2",
+                                marginBottom: "30px",
+                                textShadow: designPreview.imageUrl ? "0 4px 12px rgba(0,0,0,0.5)" : "none"
+                            }}>
+                                {designPreview.type === "instagram" && designPreview.content[0]?.title}
+                                {designPreview.type === "blog" && designPreview.content.title}
+                                {designPreview.type === "ebook" && `Chapter ${designPreview.content.chapterNumber}`}
+                            </h1>
+
+                            {/* Subtitle / Caption snippet */}
+                            <p style={{
+                                fontSize: "32px",
+                                lineHeight: "1.5",
+                                opacity: 0.9,
+                                textShadow: designPreview.imageUrl ? "0 2px 4px rgba(0,0,0,0.5)" : "none"
+                            }}>
+                                {designPreview.type === "instagram" && designPreview.content[0]?.caption.substring(0, 150) + "..."}
+                                {designPreview.type === "blog" && "Read the full guide on our blog."}
+                                {designPreview.type === "ebook" && designPreview.content.title}
+                            </p>
+                        </div>
+
+                        {/* Footer */}
+                        <div style={{
+                            position: "absolute",
+                            bottom: "40px",
+                            fontSize: "24px",
+                            fontWeight: "500",
+                            opacity: 0.7
+                        }}>
+                            @themindfulnl
+                        </div>
+                    </div>
+                )}
+            </div>
+
         </div>
     );
 }
