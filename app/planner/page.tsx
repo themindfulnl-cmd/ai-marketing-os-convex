@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 export default function WeeklyPlannerPage() {
+    return (
+        <Suspense fallback={<div className="p-10 text-center">Loading planner...</div>}>
+            <PlannerContent />
+        </Suspense>
+    );
+}
+
+function PlannerContent() {
     const [currentWeek] = useState(() => {
         const now = new Date();
         const year = now.getFullYear();
