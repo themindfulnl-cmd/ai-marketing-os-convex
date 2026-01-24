@@ -192,6 +192,61 @@ function PlannerContent() {
         }
     };
 
+    const downloadCSV = (section: { type: string; content: any }) => {
+        let csvContent = "";
+        let filename = "";
+
+        if (section.type === "instagram" && Array.isArray(section.content)) {
+            // Headers
+            const headers = ["Day", "Type", "Title", "Hook", "Caption", "Hashtags", "ImagePrompt"];
+            csvContent += headers.join(",") + "\n";
+
+            // Rows
+            section.content.forEach((post: any) => {
+                const row = [
+                    post.day,
+                    post.type,
+                    `"${post.title.replace(/"/g, '""')}"`, // Escape quotes
+                    `"${post.hook.replace(/"/g, '""')}"`,
+                    `"${post.caption.replace(/"/g, '""')}"`,
+                    `"${post.hashtags.join(" ")}"`,
+                    `"${post.imagePrompt?.replace(/"/g, '""') || ""}"`
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+            filename = `instagram_bulk_create_${currentWeek}.csv`;
+        } else if (section.type === "etsy" && Array.isArray(section.content)) {
+            const headers = ["Name", "Price", "Description", "SEO Tags"];
+            csvContent += headers.join(",") + "\n";
+            section.content.forEach((item: any) => {
+                const row = [
+                    `"${item.name.replace(/"/g, '""')}"`,
+                    item.price,
+                    `"${item.description.replace(/"/g, '""')}"`,
+                    `"${item.seoTags.join(" ")}"`
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+            filename = `etsy_bulk_create_${currentWeek}.csv`;
+        } else {
+            alert("Bulk export is best for Instagram and Etsy lists. For single items, use 'Send to Canva'.");
+            return;
+        }
+
+        // Trigger Download
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
     const handleSendToCanva = async (section: { type: string; content: any }) => {
         if (!isCanvaConnected) {
             alert("Please connect to Canva first using the button in the header.");
@@ -746,19 +801,32 @@ function PlannerContent() {
                                                         </Badge>
                                                         <span className="text-xs font-semibold capitalize">{section.type}</span>
                                                     </div>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 text-xs"
-                                                        onClick={() => handleSendToCanva(section)}
-                                                        disabled={isSendingToCanva === section.type || !isCanvaConnected}
-                                                    >
-                                                        {isSendingToCanva === section.type
-                                                            ? "⏳ Creating..."
-                                                            : isCanvaConnected
-                                                                ? "🎨 Send to Canva"
-                                                                : "🔗 Connect Canva first"}
-                                                    </Button>
+                                                    <div className="flex gap-1">
+                                                        {(section.type === "instagram" || section.type === "etsy") && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 text-xs px-2"
+                                                                onClick={() => downloadCSV(section)}
+                                                                title="Export CSV for Canva Bulk Create"
+                                                            >
+                                                                📂 CSV
+                                                            </Button>
+                                                        )}
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 text-xs"
+                                                            onClick={() => handleSendToCanva(section)}
+                                                            disabled={isSendingToCanva === section.type || !isCanvaConnected}
+                                                        >
+                                                            {isSendingToCanva === section.type
+                                                                ? "⏳ Creating..."
+                                                                : isCanvaConnected
+                                                                    ? "🎨 Send to Canva"
+                                                                    : "🔗 Connect Canva first"}
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                                 <div className="text-xs text-muted-foreground">
                                                     {section.type === "instagram" && `${section.content.length} posts`}
