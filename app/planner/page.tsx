@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useEffect, Suspense } from "react";
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +69,9 @@ function PlannerContent() {
     const [isExchangingToken, setIsExchangingToken] = useState(false);
 
     // Handle Canva OAuth callback
+    // Handle Canva OAuth callback
+    const processedCodeRef = useRef<string | null>(null);
+
     useEffect(() => {
         const canvaCode = searchParams.get("canva_code");
         const canvaState = searchParams.get("canva_state");
@@ -82,6 +85,12 @@ function PlannerContent() {
         }
 
         if (canvaCode && canvaState && !isExchangingToken) {
+            // Prevent double-processing the same code (React Strict Mode fix)
+            if (processedCodeRef.current === canvaCode) {
+                return;
+            }
+            processedCodeRef.current = canvaCode;
+
             setIsExchangingToken(true);
 
             // Exchange the code for tokens
