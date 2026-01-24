@@ -2,7 +2,8 @@
 
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,13 +46,55 @@ export default function WeeklyPlannerPage() {
     const generateImage = useAction(api.imagen.generateImage);
     const getCanvaAuthUrl = useAction(api.canva.getAuthUrl);
     const sendToCanva = useAction(api.canva.sendToCanva);
+    const exchangeCanvaToken = useAction(api.canva.exchangeToken);
     const isCanvaConnected = useQuery(api.canva.isConnected, { userId: "default-user" });
+
+    // Get URL search params for OAuth callback
+    const searchParams = useSearchParams();
+    const router = useRouter();
 
     const [isDiscovering, setIsDiscovering] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isGeneratingImage, setIsGeneratingImage] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<Record<string, string>>({});
     const [isSendingToCanva, setIsSendingToCanva] = useState<string | null>(null);
+    const [isExchangingToken, setIsExchangingToken] = useState(false);
+
+    // Handle Canva OAuth callback
+    useEffect(() => {
+        const canvaCode = searchParams.get("canva_code");
+        const canvaState = searchParams.get("canva_state");
+        const error = searchParams.get("error");
+
+        if (error) {
+            alert(`Canva connection error: ${error}`);
+            // Clear error from URL
+            router.replace("/planner");
+            return;
+        }
+
+        if (canvaCode && canvaState && !isExchangingToken) {
+            setIsExchangingToken(true);
+
+            // Exchange the code for tokens
+            exchangeCanvaToken({ code: canvaCode, state: canvaState })
+                .then((result) => {
+                    if (result.success) {
+                        alert("✅ Canva connected successfully! You can now send content to Canva.");
+                    }
+                    // Clear the URL params
+                    router.replace("/planner");
+                })
+                .catch((err) => {
+                    console.error("Token exchange failed:", err);
+                    alert(`Failed to connect Canva: ${err.message}`);
+                    router.replace("/planner");
+                })
+                .finally(() => {
+                    setIsExchangingToken(false);
+                });
+        }
+    }, [searchParams, exchangeCanvaToken, router, isExchangingToken]);
 
     const handleDiscoverTopics = async () => {
         setIsDiscovering(true);
