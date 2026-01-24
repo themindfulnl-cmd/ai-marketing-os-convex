@@ -40,9 +40,9 @@ function PlannerContent() {
         selectedTopicId ? { topicId: selectedTopicId as any } : "skip"
     );
 
-    // Get approved sections
+    // Get approved sections - prioritize week from current strategy
     const approvedSections = useQuery(api.weeklyPlanner.getApprovedSections, {
-        weekOf: currentWeek,
+        weekOf: strategy?.weekOf || currentWeek,
     });
 
     // Actions
