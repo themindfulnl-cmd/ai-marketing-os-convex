@@ -198,6 +198,23 @@ function PlannerContent() {
             // Check for generated image for this content type
             const imageUrl = generatedImages[section.type] || undefined;
 
+            // Prepare text to copy to clipboard
+            let textToCopy = "";
+            if (section.type === "instagram" && Array.isArray(section.content)) {
+                textToCopy = `${section.content[0].title}\n\n${section.content[0].caption}\n\n${section.content[0].hashtags.map((h: string) => `#${h}`).join(" ")}`;
+            } else if (section.type === "blog") {
+                textToCopy = `${section.content.title}\n\n${section.content.outline.join("\n")}`;
+            } else if (section.type === "ebook") {
+                textToCopy = `${section.content.title}\n\n${section.content.outline.join("\n")}`;
+            } else if (section.type === "etsy" && Array.isArray(section.content)) {
+                textToCopy = `${section.content[0].name}\n\n${section.content[0].description}`;
+            }
+
+            // Copy to clipboard
+            if (textToCopy) {
+                await navigator.clipboard.writeText(textToCopy);
+            }
+
             const result = await sendToCanva({
                 userId: "default-user",
                 contentType: section.type,
@@ -208,7 +225,7 @@ function PlannerContent() {
             if (result.success) {
                 // Open Canva editor in new tab
                 window.open(result.editUrl, "_blank");
-                alert(`✅ ${result.message}\n\nCanva is opening in a new tab!`);
+                alert(`✅ Design created!\n\n📋 Content copied to clipboard!\nSimply press Cmd+V (Ctrl+V) in Canva to paste your text.\n\nYour generated image (if any) is in the "Uploads" tab.`);
             }
         } catch (error: any) {
             console.error("Failed to send to Canva:", error);
