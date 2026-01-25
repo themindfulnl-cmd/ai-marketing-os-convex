@@ -54,7 +54,7 @@ function PlannerContent() {
     const resetApprovals = useMutation(api.cleanup.resetAllApprovals);
     const generateImage = useAction(api.imagen.generateImage);
     const getCanvaAuthUrl = useAction(api.canva.getAuthUrl);
-    const sendToCanva = useAction(api.canva.sendToCanva);
+    const sendToCanva = useAction((api.canva as any).sendToCanva);
     const exchangeCanvaToken = useAction(api.canva.exchangeToken);
     const isCanvaConnected = useQuery(api.canva.isConnected, { userId: "default-user" });
 
