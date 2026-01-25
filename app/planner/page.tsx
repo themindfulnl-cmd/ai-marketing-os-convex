@@ -228,8 +228,35 @@ function PlannerContent() {
                 csvContent += row.join(",") + "\n";
             });
             filename = `etsy_bulk_create_${currentWeek}.csv`;
+            filename = `etsy_bulk_create_${currentWeek}.csv`;
+        } else if (section.type === "blog") {
+            // Single row for Blog
+            const headers = ["Title", "WordCount", "Outline", "Keywords", "LeadMagnet"];
+            csvContent += headers.join(",") + "\n";
+            const row = [
+                `"${section.content.title.replace(/"/g, '""')}"`,
+                section.content.targetWordCount,
+                `"${section.content.outline.join("\n").replace(/"/g, '""')}"`,
+                `"${section.content.seoKeywords.join(", ").replace(/"/g, '""')}"`,
+                `"${section.content.leadMagnet?.replace(/"/g, '""') || ""}"`
+            ];
+            csvContent += row.join(",") + "\n";
+            filename = `blog_bulk_create_${currentWeek}.csv`;
+        } else if (section.type === "ebook") {
+            // Single row for Ebook Chapter
+            const headers = ["Chapter", "Title", "Outline", "Worksheets"];
+            csvContent += headers.join(",") + "\n";
+            const row = [
+                section.content.chapterNumber,
+                `"${section.content.title.replace(/"/g, '""')}"`,
+                `"${section.content.outline.join("\n").replace(/"/g, '""')}"`,
+                `"${section.content.worksheets.join(", ").replace(/"/g, '""')}"`
+            ];
+            csvContent += row.join(",") + "\n";
+            filename = `ebook_bulk_create_${currentWeek}.csv`;
         } else {
-            alert("Bulk export is best for Instagram and Etsy lists. For single items, use 'Send to Canva'.");
+            console.warn("Unknown export type:", section.type);
+            alert(`CSV export not optimized for ${section.type} yet.`);
             return;
         }
 
@@ -802,17 +829,15 @@ function PlannerContent() {
                                                         <span className="text-xs font-semibold capitalize">{section.type}</span>
                                                     </div>
                                                     <div className="flex gap-1">
-                                                        {(section.type === "instagram" || section.type === "etsy") && (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="h-7 text-xs px-2"
-                                                                onClick={() => downloadCSV(section)}
-                                                                title="Export CSV for Canva Bulk Create"
-                                                            >
-                                                                📂 CSV
-                                                            </Button>
-                                                        )}
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 text-xs px-2"
+                                                            onClick={() => downloadCSV(section)}
+                                                            title="Export CSV for Canva Bulk Create"
+                                                        >
+                                                            📂 CSV
+                                                        </Button>
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
