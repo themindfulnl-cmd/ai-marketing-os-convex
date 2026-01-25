@@ -58,6 +58,11 @@ function PlannerContent() {
     const exchangeCanvaToken = useAction(api.canva.exchangeToken);
     const isCanvaConnected = useQuery(api.canva.isConnected, { userId: "default-user" });
 
+    // Fetch persistent images
+    const storedImages = useQuery(api.imagen.getImagesForStrategy,
+        strategy?._id ? { strategyId: strategy._id } : "skip"
+    );
+
     // Get URL search params for OAuth callback
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -196,10 +201,24 @@ function PlannerContent() {
         let csvContent = "";
         let filename = "";
 
+        // Helper to find image URL
+        const getImageUrl = (type: string) => {
+            // Check transient state first, then persistent
+            if (generatedImages[type]) return generatedImages[type];
+            if (storedImages) {
+                const img = storedImages.find((img: any) => img.contentType === type);
+                return img ? img.imageUrl : "";
+            }
+            return "";
+        };
+
         if (section.type === "instagram" && Array.isArray(section.content)) {
             // Headers
-            const headers = ["Day", "Type", "Title", "Hook", "Caption", "Hashtags", "ImagePrompt"];
+            const headers = ["Day", "Type", "Title", "Hook", "Caption", "Hashtags", "Image_Prompt", "Image_URL"];
             csvContent += headers.join(",") + "\n";
+
+            // Get valid image URL for the week/theme
+            const imageUrl = getImageUrl("instagram");
 
             // Rows
             section.content.forEach((post: any) => {
@@ -210,47 +229,53 @@ function PlannerContent() {
                     `"${post.hook.replace(/"/g, '""')}"`,
                     `"${post.caption.replace(/"/g, '""')}"`,
                     `"${post.hashtags.join(" ")}"`,
-                    `"${post.imagePrompt?.replace(/"/g, '""') || ""}"`
+                    `"${post.imagePrompt?.replace(/"/g, '""') || ""}"`,
+                    `"${imageUrl}"`
                 ];
                 csvContent += row.join(",") + "\n";
             });
             filename = `instagram_bulk_create_${currentWeek}.csv`;
         } else if (section.type === "etsy" && Array.isArray(section.content)) {
-            const headers = ["Name", "Price", "Description", "SEO Tags"];
+            const headers = ["Name", "Price", "Description", "SEO Tags", "Image_URL"];
             csvContent += headers.join(",") + "\n";
+            const imageUrl = getImageUrl("etsy");
             section.content.forEach((item: any) => {
                 const row = [
                     `"${item.name.replace(/"/g, '""')}"`,
                     item.price,
                     `"${item.description.replace(/"/g, '""')}"`,
-                    `"${item.seoTags.join(" ")}"`
+                    `"${item.seoTags.join(" ")}"`,
+                    `"${imageUrl}"`
                 ];
                 csvContent += row.join(",") + "\n";
             });
             filename = `etsy_bulk_create_${currentWeek}.csv`;
-            filename = `etsy_bulk_create_${currentWeek}.csv`;
         } else if (section.type === "blog") {
             // Single row for Blog
-            const headers = ["Title", "WordCount", "Outline", "Keywords", "LeadMagnet"];
+            const headers = ["Title", "WordCount", "Outline", "Keywords", "LeadMagnet", "Image_URL"];
             csvContent += headers.join(",") + "\n";
+            const imageUrl = getImageUrl("blog");
             const row = [
                 `"${section.content.title.replace(/"/g, '""')}"`,
                 section.content.targetWordCount,
                 `"${section.content.outline.join("\n").replace(/"/g, '""')}"`,
                 `"${section.content.seoKeywords.join(", ").replace(/"/g, '""')}"`,
-                `"${section.content.leadMagnet?.replace(/"/g, '""') || ""}"`
+                `"${section.content.leadMagnet?.replace(/"/g, '""') || ""}"`,
+                `"${imageUrl}"`
             ];
             csvContent += row.join(",") + "\n";
             filename = `blog_bulk_create_${currentWeek}.csv`;
         } else if (section.type === "ebook") {
             // Single row for Ebook Chapter
-            const headers = ["Chapter", "Title", "Outline", "Worksheets"];
+            const headers = ["Chapter", "Title", "Outline", "Worksheets", "Image_URL"];
             csvContent += headers.join(",") + "\n";
+            const imageUrl = getImageUrl("ebook");
             const row = [
                 section.content.chapterNumber,
                 `"${section.content.title.replace(/"/g, '""')}"`,
                 `"${section.content.outline.join("\n").replace(/"/g, '""')}"`,
-                `"${section.content.worksheets.join(", ").replace(/"/g, '""')}"`
+                `"${section.content.worksheets.join(", ").replace(/"/g, '""')}"`,
+                `"${imageUrl}"`
             ];
             csvContent += row.join(",") + "\n";
             filename = `ebook_bulk_create_${currentWeek}.csv`;
