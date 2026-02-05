@@ -138,16 +138,48 @@ ${args.jobDescription}
 ### BASE RESUME:
 ${args.masterResume}
 
+---
+
+### VISUAL & FORMATTING GUIDELINES FOR RESUME (STRICT):
+1. **LAYOUT (F-Pattern):** Header (center align name/contact) -> Summary -> Skills -> Experience -> Projects -> Education
+2. **TYPOGRAPHY:**
+   - H1 (#) ONLY for Candidate Name
+   - H2 (##) for Section Headers (UPPERCASE: EXPERIENCE, SKILLS)
+   - H3 (###) for Job Titles: **Role** | Company | *Dates*
+   - Bold (**text**) for key metrics (%, $, numbers) and hard skills in bullets
+3. **SPACING:** Use horizontal rule (---) between major sections. No tables (breaks ATS).
+4. **SKILLS FORMAT:** **Category:** Skill, Skill, Skill (no progress bars)
+
+---
+
+### COVER LETTER ARCHITECTURE (3 Paragraphs, Under 250 words):
+**TONE:** Peer-to-Peer Expert, NOT subordinate. Direct and Commercial.
+1. **THE HOOK:** Do NOT start with "I am writing to apply." Start with a Company challenge/goal.
+2. **THE BRIDGE:** Connect user's specific past achievement to that challenge. Include 1-2 hard numbers.
+3. **THE CLOSE:** Low friction ask. "Would love to share how I can bring that same efficiency. Open to a brief chat?"
+
+---
+
+### DIRECT OUTREACH MESSAGE (Max 75 words):
+**GOAL:** Get a reply, not a job offer.
+**SUBJECT:** Use a "Value Hook" (NOT "Application for..."). Example: "Question about [Tech Stack] at [Company]"
+**BODY STRUCTURE:**
+- Skip pleasantries. Jump into the connection.
+- Mention ONE specific metric or project outcome.
+- Low friction ask ("brief exchange" or "perspective").
+
+---
+
 ### REQUIRED JSON OUTPUT:
 {
   "matchScore": <Integer 0-100>,
-  "gapAnalysis": "<What's missing + what was changed>",
+  "gapAnalysis": "<What's missing + key changes made>",
   "missingSkills": ["skill1", "skill2"],
-  "tailoredSummary": "<3 lines: (1) Identity, (2) Best Win, (3) How I solve your problem>",
-  "tailoredResume": "<Full markdown resume. Experience bullets use STAR method (Situation, Task, Action, Result). Move most relevant points to top. Use numbers/metrics. Skills section prioritizes JD keywords.>",
-  "coverLetter": "<Tone: Peer-to-Peer expert. Structure: Hook (I know your pain point) -> Bridge (I've fixed this before) -> Close (Let's chat). 3 paragraphs.>",
-  "dmDraft": "<75-word Pattern Interrupt cold email to hiring manager. Mention a specific technical match.>",
-  "emailSubject": "<Short & punchy subject line>"
+  "tailoredSummary": "<3 sentences: (1) Identity, (2) Best Win, (3) How I solve your problem>",
+  "tailoredResume": "<Full markdown resume following the F-Pattern layout and typography rules above. Experience bullets use STAR method. Bold metrics. Skills grouped by category.>",
+  "coverLetter": "<3 paragraphs following Hook->Bridge->Close architecture. Under 250 words. No indentation.>",
+  "dmDraft": "<75-word max cold outreach. Pattern: Hook + Proof + Low-friction Ask.>",
+  "emailSubject": "<Value Hook subject line, NOT 'Application for...'>"
 }
 
 OUTPUT ONLY VALID JSON.`;
