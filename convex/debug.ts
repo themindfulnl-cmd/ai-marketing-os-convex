@@ -37,3 +37,15 @@ export const forceCreateAsset = mutation({
         });
     },
 });
+
+// Clear all test data
+export const clearAllAssets = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const assets = await ctx.db.query("tailoredAssets").collect();
+        for (const asset of assets) {
+            await ctx.db.delete(asset._id);
+        }
+        return assets.length;
+    },
+});
