@@ -152,66 +152,92 @@ ${args.masterResume}
 
 OUTPUT ONLY VALID JSON.`;
 
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${apiKey}`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{ role: "user", parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 4096,
-                            responseMimeType: "application/json"
-                        },
-                    }),
+            // Retry with exponential backoff
+            let lastError: Error | null = null;
+            const maxRetries = 3;
+            const baseDelay = 5000; // 5 seconds
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                if (attempt > 0) {
+                    const delay = baseDelay * Math.pow(2, attempt - 1); // 5s, 10s, 20s
+                    console.log(`Retry attempt ${attempt + 1}/${maxRetries}, waiting ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
                 }
-            );
 
-            const data = await response.json();
-
-            // Check for API errors
-            if (data.error) {
-                console.error("Gemini API Error:", data.error);
-                throw new Error(`Gemini API Error: ${data.error.message || JSON.stringify(data.error)}`);
-            }
-
-            const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            // console.log("Gemini Response:", textContent); // Uncomment for debugging
-
-            // Parse JSON response
-            let analysis;
-            try {
-                // remove markdown code blocks if present
-                const cleanText = textContent.replace(/```json/g, "").replace(/```/g, "").trim();
-                analysis = JSON.parse(cleanText);
-            } catch (parseError) {
-                console.error("Failed to parse JSON:", textContent);
-                // Try to extract JSON from text
-                const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    try {
-                        analysis = JSON.parse(jsonMatch[0]);
-                    } catch (e: any) {
-                        throw new Error(`Failed to parse extracted JSON: ${e.message}. Raw: ${textContent.substring(0, 200)}...`);
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                temperature: 0.7,
+                                maxOutputTokens: 8192,
+                                responseMimeType: "application/json"
+                            },
+                        }),
                     }
-                } else {
-                    throw new Error(`Could not parse AI response as JSON. Raw length: ${textContent.length}. Content: ${textContent.substring(0, 200)}...`);
+                );
+
+                const data = await response.json();
+
+                // Check for quota errors - retry
+                if (data.error) {
+                    const errorMsg = data.error.message || JSON.stringify(data.error);
+                    console.error(`Attempt ${attempt + 1} failed:`, errorMsg);
+
+                    if (errorMsg.includes("quota") || errorMsg.includes("429") || errorMsg.includes("RESOURCE_EXHAUSTED")) {
+                        lastError = new Error(errorMsg);
+                        continue; // Retry
+                    }
+                    throw new Error(`Gemini API Error: ${errorMsg}`);
                 }
+
+                const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                // console.log("Gemini Response:", textContent); // Uncomment for debugging
+
+                // Parse JSON response
+                let analysis;
+                try {
+                    // remove markdown code blocks if present
+                    const cleanText = textContent.replace(/```json/g, "").replace(/```/g, "").trim();
+                    analysis = JSON.parse(cleanText);
+                } catch (parseError) {
+                    console.error("Failed to parse JSON:", textContent);
+                    // Try to extract JSON from text
+                    const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try {
+                            analysis = JSON.parse(jsonMatch[0]);
+                        } catch (e: any) {
+                            throw new Error(`Failed to parse extracted JSON: ${e.message}. Raw: ${textContent.substring(0, 200)}...`);
+                        }
+                    } else {
+                        throw new Error(`Could not parse AI response as JSON. Raw length: ${textContent.length}. Content: ${textContent.substring(0, 200)}...`);
+                    }
+                }
+
+                // Save the analysis
+                await ctx.runMutation(internal.jobHunter.saveAnalysis, {
+                    jobId: args.jobId,
+                    userId: args.userId,
+                    matchScore: analysis.matchScore || 50,
+                    gapAnalysis: analysis.gapAnalysis || "Analysis pending",
+                    missingSkills: analysis.missingSkills || [],
+                    tailoredSummary: analysis.tailoredSummary || "",
+                    tailoredResume: analysis.tailoredResume || args.masterResume,
+                    dmDraft: analysis.dmDraft || "",
+                    coverLetter: analysis.coverLetter || "",
+                });
+
+                return; // Success - exit the action
             }
 
-            // Save the analysis
-            await ctx.runMutation(internal.jobHunter.saveAnalysis, {
-                jobId: args.jobId,
-                userId: args.userId,
-                matchScore: analysis.matchScore || 50,
-                gapAnalysis: analysis.gapAnalysis || "Analysis pending",
-                missingSkills: analysis.missingSkills || [],
-                tailoredSummary: analysis.tailoredSummary || "",
-                tailoredResume: analysis.tailoredResume || args.masterResume,
-                dmDraft: analysis.dmDraft || "",
-                coverLetter: analysis.coverLetter || "",
-            });
+            // All retries failed
+            if (lastError) {
+                throw lastError;
+            }
 
         } catch (error: any) {
             // Generate fallback results when AI fails (quota exceeded, etc)
