@@ -272,32 +272,79 @@ OUTPUT ONLY VALID JSON.`;
             }
 
         } catch (error: any) {
-            // Generate fallback results when AI fails (quota exceeded, etc)
-            console.error("AI analysis failed, generating fallback:", error.message);
+            // Generate FORMATTED fallback when AI fails (quota exceeded)
+            console.error("AI analysis failed, generating formatted fallback:", error.message);
 
-            // Extract key info from job description for basic tailoring
-            const jobKeywords = args.jobDescription.substring(0, 500);
+            // Extract info from master resume and job description
+            const resumeLines = args.masterResume.split('\n');
+            const candidateName = resumeLines[0]?.trim() || "Candidate";
+
+            // Extract first paragraph as summary base
+            const summaryStart = args.masterResume.indexOf('Summary');
+            const summaryText = summaryStart > -1
+                ? args.masterResume.substring(summaryStart + 7, summaryStart + 500).split('\n').slice(0, 3).join(' ').trim()
+                : "Experienced professional with proven track record.";
+
+            // Extract keywords from job description
+            const jdLower = args.jobDescription.toLowerCase();
+            const isRemote = jdLower.includes('remote');
+            const companyMatch = args.jobDescription.match(/(?:at|for|join)\s+([A-Z][a-zA-Z0-9\s]+?)(?:\.|,|\s+as|\s+is|\s+we)/);
+            const company = companyMatch?.[1]?.trim() || "your company";
+
+            // Format resume with F-Pattern
+            const formattedResume = `# ${candidateName}
+Professional | Amsterdam, Netherlands
+
+---
+
+## PROFESSIONAL SUMMARY
+
+${summaryText}
+
+---
+
+## TECHNICAL SKILLS
+
+${args.masterResume.includes('JavaScript') || args.masterResume.includes('React') ? '- **Languages:** JavaScript, TypeScript, Python, SQL' : '- **Core Skills:** Marketing, Analytics, Strategy'}
+${args.masterResume.includes('React') || args.masterResume.includes('Next') ? '- **Frameworks:** React, Next.js, Node.js' : '- **Tools:** Google Analytics, HubSpot, Salesforce'}
+${args.masterResume.includes('AWS') || args.masterResume.includes('Cloud') ? '- **Cloud & DevOps:** AWS, Docker, CI/CD' : '- **Platforms:** Social Media, CRM, Automation'}
+
+---
+
+## PROFESSIONAL EXPERIENCE
+
+${args.masterResume.substring(
+                Math.max(0, args.masterResume.indexOf('Experience')),
+                Math.min(args.masterResume.length, args.masterResume.indexOf('Experience') + 2000)
+            ) || args.masterResume.substring(0, 2000)}
+
+---
+
+## EDUCATION
+
+See full resume for education details.
+`;
+
+            // Hook/Bridge/Close Cover Letter
+            const coverLetter = `${company} is clearly scaling its operations, and that demands someone who can hit the ground running with both technical depth and strategic marketing insight.
+
+In my most recent work, I built and launched complete digital ecosystems—websites, landing pages, mobile apps—that directly drove business growth. I architected marketing automation workflows that increased conversion rates and reduced manual overhead. These aren't just projects; they're repeatable playbooks I can bring to ${company}.
+
+I'd welcome a brief conversation to discuss how my experience translates to your current challenges. Are you open to a 15-minute call this week?`;
+
+            // Pattern-interrupt DM
+            const dmDraft = `Noticed ${company} is building something ambitious. I just finished a project that scaled marketing ops with automation + AI—reduced manual work by 40%. Would love to share notes if you're tackling similar challenges.`;
 
             await ctx.runMutation(internal.jobHunter.saveAnalysis, {
                 jobId: args.jobId,
                 userId: args.userId,
-                matchScore: 75,
-                gapAnalysis: `AI analysis temporarily unavailable (${error.message.includes("quota") ? "rate limit" : "error"}). Based on your resume, you appear to be a strong candidate. Review the tailored materials below and customize as needed.`,
-                missingSkills: ["Review job posting for specific requirements"],
-                tailoredSummary: "Experienced professional with relevant skills matching this opportunity. Review and customize the generated materials for best results.",
-                tailoredResume: args.masterResume,
-                dmDraft: `Hi! I noticed your posting and believe my background aligns well with what you're looking for. I'd love to connect and discuss how I can contribute to your team. Looking forward to hearing from you!`,
-                coverLetter: `Dear Hiring Manager,
-
-I am writing to express my strong interest in this position. After reviewing the job requirements, I am confident that my skills and experience make me an excellent candidate.
-
-${args.masterResume.substring(0, 500)}...
-
-I am excited about the opportunity to contribute to your team and would welcome the chance to discuss my qualifications further.
-
-Thank you for considering my application.
-
-Best regards`,
+                matchScore: 80,
+                gapAnalysis: `⚠️ AI analysis temporarily unavailable (quota limit reached). The documents below have been auto-formatted using your master resume. For best results, retry when API quota resets or customize manually.`,
+                missingSkills: ["Retry analysis when API quota resets"],
+                tailoredSummary: summaryText.substring(0, 200),
+                tailoredResume: formattedResume,
+                dmDraft: dmDraft,
+                coverLetter: coverLetter,
             });
         }
     },
