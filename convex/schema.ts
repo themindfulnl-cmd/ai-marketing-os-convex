@@ -254,5 +254,170 @@ export default defineSchema({
     expiresAt: v.number(), // timestamp
     scope: v.string(),
   }).index("by_user", ["userId"]),
+  // AGENTFLOW MOBILE: User sessions for Clerk integration (ENHANCED for Job Hunter)
+  users: defineTable({
+    clerkId: v.string(),
+    email: v.string(),
+    name: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    // Job Hunter additions
+    masterResume: v.optional(v.string()), // Markdown resume
+    bio: v.optional(v.string()), // Professional bio
+    targetRoles: v.optional(v.array(v.string())), // ["AI Engineer", "ML Lead"]
+    createdAt: v.number(),
+  }).index("by_clerk_id", ["clerkId"]),
+
+  // AGENTFLOW MOBILE: Chat messages for AI agent
+  chatMessages: defineTable({
+    userId: v.string(), // Clerk ID
+    role: v.string(), // "user" | "assistant"
+    content: v.string(),
+    timestamp: v.number(),
+    isTyping: v.optional(v.boolean()),
+  }).index("by_user", ["userId"])
+    .index("by_timestamp", ["timestamp"]),
+
+  // ============================================
+  // LINKEDIN CAREER AGENT TABLES
+  // ============================================
+
+  // Job listings discovered by the agent
+  jobs: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    company: v.string(),
+    location: v.string(),
+    description: v.string(),
+    salary: v.optional(v.string()),
+    url: v.string(),
+    source: v.string(), // "linkedin", "indeed", "glassdoor", "manual"
+    matchScore: v.number(), // 0-100
+    status: v.string(), // "new" | "queued" | "applied" | "interview" | "rejected" | "offer"
+    appliedAt: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    recruiterName: v.optional(v.string()),
+    recruiterLinkedIn: v.optional(v.string()),
+    discoveredAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["userId", "status"])
+    .index("by_match_score", ["userId", "matchScore"]),
+
+  // User resumes (master + tailored versions)
+  resumes: defineTable({
+    userId: v.string(),
+    name: v.string(), // "Master Resume" or job-specific name
+    content: v.string(), // Markdown format
+    atsScore: v.optional(v.number()), // 0-100
+    targetJobId: v.optional(v.id("jobs")),
+    keywords: v.optional(v.array(v.string())), // Extracted keywords
+    isMaster: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_job", ["targetJobId"]),
+
+  // Outreach drafts for recruiters
+  outreachDrafts: defineTable({
+    userId: v.string(),
+    jobId: v.id("jobs"),
+    type: v.string(), // "linkedin_dm" | "email" | "connection_request"
+    recruiterName: v.optional(v.string()),
+    subject: v.optional(v.string()), // For emails
+    body: v.string(),
+    status: v.string(), // "draft" | "sent" | "replied"
+    sentAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_job", ["jobId"])
+    .index("by_user", ["userId"]),
+
+  // LinkedIn posts for personal branding
+  linkedinPosts: defineTable({
+    userId: v.string(),
+    content: v.string(),
+    topic: v.string(), // "career", "tech", "ai", "leadership"
+    hook: v.optional(v.string()),
+    scheduledFor: v.optional(v.number()),
+    postedAt: v.optional(v.number()),
+    status: v.string(), // "draft" | "scheduled" | "posted"
+    engagementMetrics: v.optional(v.object({
+      likes: v.number(),
+      comments: v.number(),
+      shares: v.number(),
+      impressions: v.number(),
+    })),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["userId", "status"])
+    .index("by_schedule", ["scheduledFor"]),
+
+  // User profile for job matching
+  userProfile: defineTable({
+    userId: v.string(),
+    targetRoles: v.array(v.string()), // ["AI Engineer", "ML Engineer"]
+    targetCompanies: v.optional(v.array(v.string())),
+    skills: v.array(v.string()),
+    experience: v.string(), // "junior", "mid", "senior", "lead"
+    preferredLocations: v.optional(v.array(v.string())),
+    salaryExpectation: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+    portfolioUrl: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // ============================================
+  // JOB HUNTER BLUEPRINT TABLES
+  // ============================================
+
+  // Tailored assets per job application (Blueprint: tailored_assets)
+  tailoredAssets: defineTable({
+    userId: v.string(),
+    jobId: v.id("jobs"),
+    // AI-generated analysis
+    matchScore: v.number(), // 0-100
+    gapAnalysis: v.string(), // Missing skills/experience
+    missingSkills: v.optional(v.array(v.string())),
+    // Generated assets
+    tailoredResume: v.string(), // Markdown
+    tailoredSummary: v.string(), // 2-3 sentence tailored pitch
+    dmDraft: v.string(), // Connection request message
+    coverLetter: v.optional(v.string()),
+    // Review workflow
+    status: v.string(), // "pending_review" | "approved" | "rejected"
+    approvedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_job", ["jobId"])
+    .index("by_status", ["userId", "status"]),
+
+  // Content ideas for personal branding (Blueprint: content_ideas)
+  contentIdeas: defineTable({
+    userId: v.string(),
+    topic: v.string(),
+    sourceUrl: v.optional(v.string()),
+    // 3 post variations per blueprint
+    technicalDraft: v.string(), // Technical Deep Dive
+    strategicDraft: v.string(), // Strategic Insight
+    networkingDraft: v.string(), // Networking Hook
+    // Selected/edited version
+    selectedVariant: v.optional(v.string()), // "technical" | "strategic" | "networking"
+    editedContent: v.optional(v.string()), // User's edited version
+    // Workflow
+    status: v.string(), // "draft" | "approved" | "posted"
+    postedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["userId", "status"]),
+
+  // Trending topics feed
+  trendingTopics: defineTable({
+    topic: v.string(),
+    category: v.string(), // "tech", "ai", "career", "industry"
+    sourceUrl: v.optional(v.string()),
+    viralScore: v.number(), // 1-100
+    description: v.optional(v.string()),
+    fetchedAt: v.number(),
+  }).index("by_category", ["category"])
+    .index("by_viral_score", ["viralScore"]),
+
 });
 
